@@ -34,7 +34,7 @@ static itrbool_t isNotValidObject(itrobj_t this)
 static itrobj_t PreInit(itrflags_t flags)
 {
     SwitchableConstructor = ItrConstructor;
-    SwitchableConstructor(flags);
+    return SwitchableConstructor(flags);
 }
 
 static itrobj_t ItrConstructor(itrflags_t flags)
@@ -345,8 +345,9 @@ void itrcallback(itrobj_t this, itrcall_t call, itrflags_t type)
     if (isNotValidObject(this))
         return;
 
-    this->step = call;
-
+    if (ITR_CHECK_MASK(type, ITR_STEP))
+        this->step = call;
+    
     ITRLOG(ITR_L_TRACE, "id[%d] callback:%p", this->autoid, this->step);
 }
 
@@ -363,7 +364,10 @@ static void _itrrst_skip_assert(itrobj_t this)
 {
     if (!this)
         return;
+#ifdef ITRLIB_DEBUG
     itrptr_t locate;
+    locate = this->locate;
+#endif    
 
     this->index = 0;
     this->locate = this->base;

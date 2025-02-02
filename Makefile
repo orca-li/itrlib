@@ -1,4 +1,4 @@
-CC := gcc
+CC := clang
 
 INCLUDES += -I"."
 
@@ -10,6 +10,9 @@ SOURCES += itrlib/itrobj/itrobj.c
 
 CFLAGS += -ggdb
 CFLAGS += -O0
+CFLAGS += -Wall
+CFLAGS += -Wextra
+CFLAGS += -Werror
 
 DIR_OUT := build
 NAME_OUT := example

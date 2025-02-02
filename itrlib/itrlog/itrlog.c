@@ -76,7 +76,7 @@ static void FileIoHandler(char *str)
 
 static void StdioHandler(char *str)
 {
-    fprintf(stdout, str);
+    fprintf(stdout, "%s", str);
 }
 
 void __ITR_DBG_CONFIG__(itrlog_lvl_t enable, itrlog_lvl_t disable, ...)
