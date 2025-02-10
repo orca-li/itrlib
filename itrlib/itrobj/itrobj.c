@@ -5,6 +5,9 @@
 #include "../include/itrlog.h"
 #include "../include/itrobj.h"
 
+#define ITR_ОТНОСИТЕЛЬНЫЙ  (1 << 0)
+#define ITR_ФИЗИЧЕСКИЙ     (1 << 1)
+
 static itrid_t autoid = AUTO_ID_BASE;
 
 void itrdstr(itrobj_t this);
@@ -14,7 +17,48 @@ void itrrst(itrobj_t this);
 static void _itrpp(itrobj_t this);
 static void __itrpp(itrobj_t this, ...);
 static void _itrrst_skip_assert(itrobj_t this);
+/**
+ * @brief  Выравнивает текущую позицию итератора (locate) либо относительно базы,
+ *         либо относительно нулевого адреса (физический), в зависимости от flags.
+ *
+ * @param  obj   указатель на объект-итератор
+ * @param  flags битовые флаги выравнивания (ITR_ОТНОСИТЕЛЬНЫЙ или ITR_ФИЗИЧЕСКИЙ)
+ */
+public void itralign(itrobj_t obj, itrflags_t flags)
+{
+    if (obj == NULL || obj->stepsz <= 0) {
+        return;
+    }
 
+    // Размер шага
+    itrint_t step = obj->stepsz;
+
+    // 1) Выравнивание относительно базы
+    if (flags & ITR_ОТНОСИТЕЛЬНЫЙ) 
+    {
+        itrptr_t offset   = obj->locate - obj->base;
+        itrptr_t remainder = offset % step;
+
+        // Если уже кратно шагу, ничего делать не нужно
+        if (remainder != 0)
+        {
+            // Сколько байт не хватает до кратности?
+            itrptr_t delta = step - remainder;
+            // "Подтягиваем" адрес locate к следующему кратному значению
+            obj->locate += delta;
+        }
+    }
+    // 2) Выравнивание относительно физического адреса (нулевой базы)
+    else if (flags & ITR_ФИЗИЧЕСКИЙ)
+    {
+        itrptr_t remainder = obj->locate % step;
+        if (remainder != 0)
+        {
+            itrptr_t delta = step - remainder;
+            obj->locate += delta;
+        }
+    }
+}
 static itrobj_t (*SwitchableConstructor)(itrflags_t) = PreInit;
 
 static itrbool_t isNotValidObject(itrobj_t this)
