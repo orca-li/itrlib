@@ -26,6 +26,7 @@ private
 
     ddsobj_t kin;
     ddsobj_t peer;
+    void itralign(itrobj_t obj, itrflags_t flags);
 } itrclass_t;
 typedef itrclass_t *itrobj_t;
 typedef void (*itrcall_t)(struct ITERATOR_CLASS *, ...);
