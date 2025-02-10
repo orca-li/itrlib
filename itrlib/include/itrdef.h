@@ -19,6 +19,7 @@
 #define ITR_PARENT_CHILD    0x00000002u
 #define ITR_PARENT          0x00000004u
 #define ITR_CHILD           0x00000008u
+#define ITR_PEER            0x00000010u
 
 /**
  * ITERATOR MODIFIERS

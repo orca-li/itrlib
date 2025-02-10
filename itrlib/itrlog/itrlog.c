@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <ddslib.h>
+
 #define STR_FILENAME "ITR_OUTPUT.log"
 #define STR_NONE "NONE"
 #define STR_DEBUG "DEBUG"
@@ -176,8 +178,8 @@ static void DumpLevelHandler(itrobj_t this, char* base)
     fillptr += sprintf(fillptr, "  >> [LOCATION] base:%p locate:%p\r\n", this->base, this->locate);
     fillptr += sprintf(fillptr, "  >> [COUNT] stepsz:%d limite:%d index:%d\r\n", this->stepsz, this->limite, this->index);
 
-    fillptr += sprintf(fillptr, "  >> [FAMILY] parent:%p child:%p\r\n", this->parent, this->child);
-    fillptr += sprintf(fillptr, "  >> [PEERS] PREV:%p NEXT:%p\r\n", this->prev, this->next);
+    fillptr += sprintf(fillptr, "  >> [KIN] parent:%p child:%p\r\n", ddsget(this->kin, DDS_GET_PREV_DDS), ddsget(this->kin, DDS_GET_NEXT_DDS));
+    fillptr += sprintf(fillptr, "  >> [PEERS] PREV:%p NEXT:%p\r\n", ddsget(this->peer, DDS_GET_PREV_DDS), ddsget(this->peer, DDS_GET_NEXT_DDS));
 
     LogTransmit(base);
 }

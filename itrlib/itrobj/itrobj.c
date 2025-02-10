@@ -7,10 +7,12 @@
 
 static itrid_t autoid = AUTO_ID_BASE;
 
+void itrdstr(itrobj_t this);
 static itrobj_t PreInit(itrflags_t flags);
 static itrobj_t ItrConstructor(itrflags_t flags);
 void itrrst(itrobj_t this);
-static void _itrpp_skip_assert(itrobj_t this);
+static void _itrpp(itrobj_t this);
+static void __itrpp(itrobj_t this, ...);
 static void _itrrst_skip_assert(itrobj_t this);
 
 static itrobj_t (*SwitchableConstructor)(itrflags_t) = PreInit;
@@ -46,13 +48,20 @@ static itrobj_t ItrConstructor(itrflags_t flags)
 
     this->autoid = autoid++;
     this->step = NULL;
-
-    this->parent = NULL;
-    this->child = NULL;
-    this->next = NULL;
-    this->prev = NULL;
-
     this->flags = flags;
+    this->kin = ddscnst(DDS_TYPE_LIST);
+    if (!this->kin)
+    {
+        ITRLOG(ITR_L_ERROR, "id[%d] failed to create ddsobj->kin");
+        itrdstr(this);
+    }
+    this->peer = ddscnst(DDS_TYPE_RING);
+    if (!this->peer)
+    {
+        ITRLOG(ITR_L_ERROR, "id[%d] failed to create ddsobj->peer");
+        itrdstr(this);
+    }
+    ddsins(this->peer, DDS_INS_DATA, this, sizeof(itrclass_t));
 
     ITRLOG(ITR_L_TRACE, "id[%d] created", this->autoid);
 
@@ -82,6 +91,10 @@ void itrinit(itrobj_t this, itrint_t stepsz, itrptr_t locate, ...)
         this->limite = va_arg(args, itrint_t);
         ITRLOG(ITR_L_TRACE, "id[%d] flag:LIMITATION limite:%d", this->autoid, this->limite);
     }
+    else
+    {
+        this->limite = 0;
+    }
 
     ITRLOG(ITR_L_TRACE, "id[%d] count:%d stepsz:%d locate:%p",
            this->autoid, this->index, this->stepsz, this->locate);
@@ -101,9 +114,9 @@ void itrlink(itrobj_t this, itrflags_t type, ...)
     if (ITR_CHECK_MASK(type, ITR_PEER_TO_PEER))
     {
         peer = va_arg(args, itrobj_t);
-        peer->prev = this;
-        this->next = peer;
-        /* peer->next = ? */
+        ddsins(this->peer, DDS_INS_NEXT, peer->peer);
+        ITRLOG(ITR_L_TRACE, "id[%d] [link] peer(%d)->peer(%d)",
+            this->autoid, this->autoid, peer->autoid);
         goto exit;
     }
 
@@ -113,9 +126,9 @@ void itrlink(itrobj_t this, itrflags_t type, ...)
         if (isNotValidObject(peer))
             goto exit;
 
-        this->child = peer;
-        peer->parent = this;
-        ITRLOG(ITR_L_TRACE, "id[%d] [link] parent(%d)->child(%d)", this->autoid, this->autoid, this->child->autoid);
+        ddsins(this->kin, DDS_INS_NEXT, peer->kin);
+        ITRLOG(ITR_L_TRACE, "id[%d] [link] parent(%d)->child(%d)", 
+                this->autoid, this->autoid, ((itrobj_t)ddsget(this->kin, DDS_GET_NEXT_DATA))->autoid);
         goto exit;
     }
 
@@ -125,6 +138,8 @@ exit:
 
 static void ChildUnlinkHandler(itrobj_t this)
 {
+    (void)this;
+#if 0
     if (!this->child)
         return;
 #ifdef ITRLIB_DEBUG
@@ -139,10 +154,13 @@ static void ChildUnlinkHandler(itrobj_t this)
 
     ITRLOG(ITR_L_TRACE, "id[%d] [unlink:2] this(%d)->child(%p) child(%d)->parent(%p)",
            this->autoid, this->autoid, this->child, dbg_child->autoid, dbg_child->parent);
+#endif
 }
 
 static void ParentUnlinkHandler(itrobj_t this)
 {
+    (void)this;
+#if 0
     if (!this->parent)
         return;
 #ifdef ITRLIB_DEBUG
@@ -156,6 +174,12 @@ static void ParentUnlinkHandler(itrobj_t this)
 
     ITRLOG(ITR_L_TRACE, "id[%d] [unlink:2] this(%d)->parent(%p) parent(%d)->child(%p)",
            this->autoid, this->autoid, this->parent, dbg_parent->autoid, dbg_parent->child);
+#endif
+}
+
+static void PeerUnlinkHandler(itrobj_t this)
+{
+    ddsdetach(this->peer, DDS_DETACH_THIS);
 }
 
 void itrulink(itrobj_t this, itrflags_t type, ...)
@@ -169,6 +193,20 @@ void itrulink(itrobj_t this, itrflags_t type, ...)
         ParentUnlinkHandler(this);
     if (ITR_CHECK_MASK(type, ITR_CHILD))
         ChildUnlinkHandler(this);
+    if (ITR_CHECK_MASK(type, ITR_PEER))
+    {
+        va_list args;
+        itrobj_t peer;
+        va_start(args, type);
+        peer = va_arg(args, itrobj_t);
+        while (peer != NULL)
+        {
+            PeerUnlinkHandler(peer);
+            peer = va_arg(args, itrobj_t);   
+        }
+        va_end(args);
+    }
+        
 }
 
 static void OverflowHandler(itrobj_t this)
@@ -180,12 +218,12 @@ static void OverflowHandler(itrobj_t this)
     ITRLOG(ITR_L_TRACE, "id[%d] index(%d) >= limite(%d)",
            this->autoid, this->index, this->limite);
 
-    _itrpp_skip_assert(this->parent);
+    _itrpp((itrobj_t)ddsget(this->kin, DDS_GET_PREV_DATA));
 }
 
 static void ResetChildHandler(itrobj_t this)
 {
-    _itrrst_skip_assert(this->child);
+    _itrrst_skip_assert((itrobj_t)ddsget(this->kin, DDS_GET_NEXT_DDS));
 }
 
 static void StepCallback(itrobj_t this)
@@ -197,6 +235,20 @@ static void StepCallback(itrobj_t this)
     }
 }
 
+static void NextPeerHandler(itrobj_t this)
+{
+    ddsobj_t head, next_peer;
+
+    head = this->peer;
+    next_peer = ddsget(this->peer, DDS_GET_NEXT_DDS);
+    while(head != next_peer)
+    {   
+        this = ddsget(next_peer, DDS_GET_DATA);
+        next_peer = ddsget(this->peer, DDS_GET_NEXT_DDS);
+        __itrpp(this);
+    }
+}
+
 static void __itrpp__(itrobj_t this)
 {
     if (isNotValidObject(this))
@@ -205,7 +257,7 @@ static void __itrpp__(itrobj_t this)
     this->index++;
     this->locate += this->stepsz;
     StepCallback(this);
-    ITRLOG(ITR_L_STEP, "id[%d] [pp: itr++] count:%d locate:%p", this->autoid, this->index, this->locate);
+    ITRLOG(ITR_L_STEP, "id[%d] [pp: itr++] index:%d locate:%p", this->autoid, this->index, this->locate);
 
     OverflowHandler(this);
     ResetChildHandler(this);
@@ -213,15 +265,15 @@ static void __itrpp__(itrobj_t this)
 
 static void __itrpp(itrobj_t this, ...)
 {
+    if (!this)
+        return;
     __itrpp__(this);
 }
 
-static void _itrpp_skip_assert(itrobj_t this)
+static void _itrpp(itrobj_t this)
 {
-    if (!this)
-        return;
-
     __itrpp(this);
+    NextPeerHandler(this);
 }
 
 void itrpp(itrobj_t this)
@@ -229,7 +281,7 @@ void itrpp(itrobj_t this)
     if (isNotValidObject(this))
         return;
 
-    _itrpp_skip_assert(this);
+    _itrpp(this);
 }
 
 static void __itrmm__(itrobj_t this)

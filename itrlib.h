@@ -22,7 +22,7 @@ void itrrst(itrobj_t);
 void itrbase(itrobj_t);
 
 void itrlink(itrobj_t, itrflags_t type, ...);
-void itrulink(itrobj_t, itrobj_t);
+void itrulink(itrobj_t, itrflags_t type, ...);
 
 void itrrun(itrobj_t, itrint_t limit);
 void itrcallback(itrobj_t, itrcall_t, itrflags_t type);

@@ -3,10 +3,13 @@ CC := clang
 INCLUDES += -I"."
 
 DEFINES += -D"ITRLIB_DEBUG"
+#DEFINES += -D"DDS_MAIN"
 
 SOURCES += example/main.c
 SOURCES += itrlib/itrlog/itrlog.c
 SOURCES += itrlib/itrobj/itrobj.c
+SOURCES += ddslib/ddsobj/ddsobj.c
+SOURCES += ddslib/ddslist/ddslist.c
 
 CFLAGS += -ggdb
 CFLAGS += -O0

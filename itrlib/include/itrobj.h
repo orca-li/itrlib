@@ -1,6 +1,7 @@
 #ifndef ITR_GUID32_40D4ED97
 #define ITR_GUID32_40D4ED97
 
+#include <ddslib.h>
 #include "itrdef.h"
 
 #define public
@@ -23,10 +24,8 @@ private
 
     void (*step)(struct ITERATOR_CLASS *, ...);
 
-    struct ITERATOR_CLASS *parent;
-    struct ITERATOR_CLASS *child;
-    struct ITERATOR_CLASS *next;
-    struct ITERATOR_CLASS *prev;
+    ddsobj_t kin;
+    ddsobj_t peer;
 } itrclass_t;
 typedef itrclass_t *itrobj_t;
 typedef void (*itrcall_t)(struct ITERATOR_CLASS *, ...);
